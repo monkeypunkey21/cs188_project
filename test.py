@@ -5,7 +5,7 @@ from policies import *
 
 # create environment instance
 env = suite.make(
-    env_name="NutAssembly", # replace with other tasks "Stack" and "NutAssembly"
+    env_name="Door", # replace with other tasks "Stack" and "NutAssembly"
     robots="Panda",  
     has_renderer=True,
     has_offscreen_renderer=False,
@@ -16,7 +16,7 @@ env = suite.make(
 # reset the environment
 for _ in range(5):
     obs = env.reset()
-    policy = NutAssemblyPolicy(obs)
+    policy = DoorPolicy(obs)
     
     print(obs.keys())  # print observation keys
 

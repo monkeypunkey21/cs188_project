@@ -9,11 +9,13 @@ from stable_baselines3.common.callbacks import EvalCallback, CheckpointCallback
 class RobosuiteGymEnv(gym.Env):
     """Thin wrapper to make robosuite fully compatible with Gymnasium/SB3."""
 
-    def __init__(self, render_mode=None, horizon=500):
+    def __init__(self, render_mode=None, horizon=500, extra_shaping=True):
         super().__init__()
         self.render_mode = render_mode
+        self.extra_shaping = extra_shaping
+        self.prev_action = None
         self.env = suite.make(
-            env_name="Stack",
+            env_name="Door",
             robots="Panda",
             has_renderer=(render_mode == "human"),
             has_offscreen_renderer=False,
@@ -34,10 +36,36 @@ class RobosuiteGymEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         obs, info = self.gym_env.reset()
+        self.prev_action = None
         return obs.astype(np.float32), info
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.gym_env.step(action)
+
+        if self.extra_shaping:
+            raw = self.env
+
+            # Grasp reward: bridge the gap between reaching and rotating
+            # Use the latch body's geoms (handle + latch pieces)
+            handle_geoms = [raw.door.naming_prefix + name for name in ["handle", "handle_base", "latch", "latch_tip"]]
+            grasped = raw._check_grasp(
+                gripper=raw.robots[0].gripper,
+                object_geoms=handle_geoms,
+            )
+            grasp_reward = 0.25 if grasped else 0.0
+
+            # Action penalty: discourage large/jerky actions
+            action_penalty = -0.01 * np.sum(action ** 2)
+
+            # Time penalty: incentivize finishing faster
+            time_penalty = -0.002
+
+            reward += grasp_reward + action_penalty + time_penalty
+            info["grasp_reward"] = grasp_reward
+            info["action_penalty"] = action_penalty
+            info["time_penalty"] = time_penalty
+
+        self.prev_action = action
         return obs.astype(np.float32), reward, terminated, truncated, info
 
     def render(self):
@@ -48,12 +76,12 @@ class RobosuiteGymEnv(gym.Env):
         self.env.close()
 
 
-def make_env(horizon=500):
-    return RobosuiteGymEnv(horizon=horizon)
+def make_env(horizon=500, extra_shaping=True):
+    return RobosuiteGymEnv(horizon=horizon, extra_shaping=extra_shaping)
 
 
 def train(timesteps=500_000, eval_freq=10_000, save_freq=50_000, resume_from=None):
-    """Train a SAC agent on the Stack task.
+    """Train a SAC agent on the Door task.
 
     Args:
         resume_from: Path to a checkpoint to resume training from.
@@ -63,21 +91,21 @@ def train(timesteps=500_000, eval_freq=10_000, save_freq=50_000, resume_from=Non
 
     eval_callback = EvalCallback(
         eval_env,
-        best_model_save_path="models/stack_sac/",
-        log_path="logs/stack_sac/",
+        best_model_save_path="models/door_sac/",
+        log_path="logs/door_sac/",
         eval_freq=eval_freq,
         n_eval_episodes=10,
         deterministic=True,
     )
     checkpoint_callback = CheckpointCallback(
         save_freq=save_freq,
-        save_path="models/stack_sac_checkpoints/",
-        name_prefix="stack",
+        save_path="models/door_sac_checkpoints/",
+        name_prefix="door",
     )
 
     if resume_from:
         print(f"Resuming training from {resume_from}...")
-        model = SAC.load(resume_from, env=env, tensorboard_log="logs/stack_sac_tb/")
+        model = SAC.load(resume_from, env=env, tensorboard_log="logs/door_sac_tb/")
     else:
         print("Starting training from scratch...")
         model = SAC(
@@ -90,25 +118,25 @@ def train(timesteps=500_000, eval_freq=10_000, save_freq=50_000, resume_from=Non
             gamma=0.99,
             tau=0.005,
             learning_starts=10_000,
-            tensorboard_log="logs/stack_sac_tb/",
+            tensorboard_log="logs/door_sac_tb/",
         )
 
-    print(f"Training SAC on Stack for {timesteps} timesteps...")
+    print(f"Training SAC on Door for {timesteps} timesteps...")
     model.learn(
         total_timesteps=timesteps,
         callback=[eval_callback, checkpoint_callback],
         reset_num_timesteps=(resume_from is None),
     )
-    model.save("models/stack_sac/final_model")
-    print("Training complete. Model saved to models/stack_sac/")
+    model.save("models/door_sac/final_model")
+    print("Training complete. Model saved to models/door_sac/")
     env.close()
     eval_env.close()
     return model
 
 
-def evaluate(model_path="models/stack_sac/best_model", n_episodes=5):
+def evaluate(model_path="models/door_sac/best_model", n_episodes=20, render_mode="human"):
     """Load a trained model and visualize it in the MuJoCo viewer."""
-    env = RobosuiteGymEnv(render_mode="human", horizon=500)
+    env = RobosuiteGymEnv(render_mode=render_mode, horizon=500)
     model = SAC.load(model_path)
 
     for ep in range(n_episodes):
@@ -129,11 +157,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--timesteps", type=int, default=500_000)
+    parser.add_argument("--timesteps", type=int, default=200_000)
     parser.add_argument("--eval-freq", type=int, default=10_000)
     parser.add_argument("--save-freq", type=int, default=50_000)
     parser.add_argument("--eval", action="store_true", help="Evaluate a saved model")
-    parser.add_argument("--model-path", type=str, default="models/stack_sac/best_model")
+    parser.add_argument("--model-path", type=str, default="models/door_sac/best_model")
     parser.add_argument("--resume-from", type=str, default=None, help="Checkpoint path to resume training from")
     args = parser.parse_args()
 
