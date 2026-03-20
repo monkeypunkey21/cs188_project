@@ -45,7 +45,7 @@ class RobosuiteGymEnv(gym.Env):
         if self.extra_shaping:
             raw = self.env
 
-            # --- Grasp shaping: gradual reward for getting close AND closing gripper ---
+            # gradual reward for getting close AND closing gripper
             handle_geoms = [raw.door.naming_prefix + name for name in ["handle", "handle_base", "latch", "latch_tip"]]
 
             # Binary grasp detection (bonus when fully grasping)
@@ -54,14 +54,13 @@ class RobosuiteGymEnv(gym.Env):
                 object_geoms=handle_geoms,
             )
 
-            # Gripper-to-handle distance
             dist = np.linalg.norm(raw._gripper_to_handle)
 
             # Gripper openness: last action dim controls gripper (-1=close, 1=open)
             # Reward closing the gripper when near the handle
             gripper_action = action[-1]
-            near_handle = dist < 0.05  # within 5cm
-            closing_gripper = gripper_action < 0  # negative = closing
+            near_handle = dist < 0.05
+            closing_gripper = gripper_action < 0
 
             if grasped:
                 grasp_reward = 0.5  # strong bonus for actual grasp
