@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning to Open Doors with RL</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d2e;
+            --border: #2a2d3e;
+            --text: #e2e4e9;
+            --muted: #8b8fa3;
+            --accent: #6c8cff;
+            --accent2: #44d9a8;
+            --accent3: #ff6b8a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 80px 20px 60px;
+            background: linear-gradient(135deg, #141728 0%, #1a1d2e 50%, #1c2333 100%);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero .subtitle {
+            font-size: 1.2rem;
+            color: var(--muted);
+            max-width: 650px;
+            margin: 0 auto 24px;
+        }
+
+        .hero .tags {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        section {
+            padding: 60px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        section:last-child { border-bottom: none; }
+
+        h2 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            color: var(--accent);
+        }
+
+        h2 .number {
+            color: var(--muted);
+            font-weight: 400;
+            margin-right: 8px;
+        }
+
+        .section-desc {
+            color: var(--muted);
+            margin-bottom: 32px;
+            font-size: 1.05rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: var(--accent2);
+        }
+
+        .card p, .card li {
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .card ul { padding-left: 20px; }
+
+        .card li { margin-bottom: 6px; }
+
+        .reward-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 24px 0;
+            font-size: 0.9rem;
+        }
+
+        .reward-stage {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 18px;
+            text-align: center;
+        }
+
+        .reward-stage .value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .reward-stage .label {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .reward-stage.improved {
+            border-color: var(--accent2);
+        }
+
+        .reward-stage.improved .value {
+            color: var(--accent2);
+        }
+
+        .arrow {
+            color: var(--muted);
+            font-size: 1.2rem;
+        }
+
+        .fig-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        .fig-grid.two-col {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        @media (max-width: 700px) {
+            .fig-grid.two-col { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2rem; }
+        }
+
+        .fig-container {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .fig-container img {
+            width: 100%;
+            display: block;
+        }
+
+        .fig-caption {
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+        }
+
+        .plotly-chart {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .video-container video,
+        .video-container iframe {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-placeholder {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: var(--muted);
+        }
+
+        .video-placeholder svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 700px) {
+            .metrics-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        .metric-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .metric-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .metric-card .label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .table-wrapper { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--accent);
+            font-weight: 600;
+            background: var(--surface);
+        }
+
+        td { color: var(--muted); }
+
+        .footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        code {
+            background: var(--surface);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            border: 1px solid var(--border);
+        }
+
+        h3.section-label {
+            color: var(--accent2);
+            margin-bottom: 16px;
+            margin-top: 32px;
+        }
+
+        h3.section-label:first-child { margin-top: 0; }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1>Learning to Open Doors with RL</h1>
+    <p class="subtitle">Training a 7-DoF Panda robot arm to open a door using Soft Actor-Critic (SAC) in the robosuite simulation environment.</p>
+    <div class="tags">
+        <span class="tag">Reinforcement Learning</span>
+        <span class="tag">SAC</span>
+        <span class="tag">robosuite</span>
+        <span class="tag">MuJoCo</span>
+        <span class="tag">Panda Robot</span>
+        <span class="tag">Stable-Baselines3</span>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ====================================================== -->
+    <!-- DEMO VIDEO -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">00.</span> Demo Video</h2>
+        <p class="section-desc">Watch the trained SAC agent open a door in real time.</p>
+        <div class="video-container">
+            <video src="demo.mp4" controls autoplay muted loop></video>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- (1) TASK DEFINITION -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">01.</span> Task Definition</h2>
+        <p class="section-desc">The goal of this project is to train a simulated robot arm to open a door entirely through reinforcement learning &mdash; no hand-coded motion planning or trajectory optimization. The robot must discover on its own how to reach for the door handle, close its gripper, rotate the latch, and pull the door open. Below we describe the specific environment setup and what makes this task non-trivial for an RL agent.</p>
+
+        <div class="card">
+            <h3>Environment</h3>
+            <ul>
+                <li><strong>Simulator:</strong> MuJoCo (via robosuite v1.5)</li>
+                <li><strong>Robot:</strong> Franka Emika Panda &mdash; 7-DoF arm with parallel-jaw gripper</li>
+                <li><strong>Task:</strong> <code>Door</code> &mdash; reach the handle, grasp it, rotate the latch, and pull the door open</li>
+                <li><strong>Observations:</strong> Low-dimensional state (joint positions, velocities, gripper state, door hinge angle, handle position) &mdash; 39-dim vector</li>
+                <li><strong>Actions:</strong> 8-dim continuous (7 joint velocities + 1 gripper open/close)</li>
+                <li><strong>Horizon:</strong> 500 timesteps per episode</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Why This Task Is Challenging</h3>
+            <p>The agent must discover a <strong>sequence of coordinated behaviors</strong> through trial and error:</p>
+            <div class="reward-flow" style="margin: 20px 0;">
+                <div class="reward-stage"><div class="value">1</div><div class="label">Reach handle</div></div>
+                <span class="arrow">&rarr;</span>
+                <div class="reward-stage"><div class="value">2</div><div class="label">Grasp</div></div>
+                <span class="arrow">&rarr;</span>
+                <div class="reward-stage"><div class="value">3</div><div class="label">Rotate latch</div></div>
+                <span class="arrow">&rarr;</span>
+                <div class="reward-stage"><div class="value">4</div><div class="label">Pull open</div></div>
+            </div>
+            <p>Each sub-step must succeed for the overall task to complete. A failure at any stage (e.g., mis-grasping the handle) means the entire episode fails.</p>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- (2) REWARD DESIGN -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">02.</span> Reward Design</h2>
+        <p class="section-desc">In reinforcement learning, the reward function is the only signal the agent receives about whether it is doing well or poorly. A poorly designed reward can cause the agent to learn unintended behaviors (reward hacking) or fail to learn at all. For a sequential task like door opening, the reward must provide a gradient that guides the agent through each phase &mdash; reaching, grasping, rotating, and pulling &mdash; without rewarding any single phase so much that the agent stops progressing.</p>
+
+        <div class="card">
+            <h3>Baseline Reward (robosuite default)</h3>
+            <p>The robosuite Door environment includes a built-in shaped reward with three components. These provide a reasonable starting point, but as we discovered, they have a critical blind spot:</p>
+            <div class="reward-flow">
+                <div class="reward-stage"><div class="value">0 &ndash; 0.25</div><div class="label">Reaching</div></div>
+                <span class="arrow">&rarr;</span>
+                <div class="reward-stage"><div class="value">0 &ndash; 0.25</div><div class="label">Rotating</div></div>
+                <span class="arrow">&rarr;</span>
+                <div class="reward-stage"><div class="value">1.0</div><div class="label">Door Open</div></div>
+            </div>
+            <ul style="margin-top: 12px;">
+                <li><strong>Reaching:</strong> <code>0.25 &times; (1 &minus; tanh(10 &times; dist))</code> &mdash; smooth gradient toward the handle</li>
+                <li><strong>Rotating:</strong> Proportional to handle rotation angle (locked door variant)</li>
+                <li><strong>Completion:</strong> Sparse +1.0 when the door is fully open</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Our Custom Additions (Wrapper Shaping)</h3>
+            <p>After analyzing the baseline reward, we identified a <strong>critical gap</strong>: there is no reward signal for grasping. The reaching reward maxes out at 0.25 when the gripper is near the handle, and the rotating reward only activates once the handle is already turning &mdash; but the agent receives zero feedback for the act of closing its fingers around the handle. This means the agent must randomly discover that gripping leads to handle rotation, which is a difficult exploration problem. To address this, we added three shaping terms in our Gymnasium wrapper, layered on top of the base reward without modifying robosuite&rsquo;s source code:</p>
+            <div class="reward-flow">
+                <div class="reward-stage improved"><div class="value">+0.25</div><div class="label">Grasp Reward</div></div>
+                <div class="reward-stage improved"><div class="value">&minus;0.01&middot;||a||&sup2;</div><div class="label">Action Penalty</div></div>
+                <div class="reward-stage improved"><div class="value">&minus;0.002</div><div class="label">Time Penalty</div></div>
+            </div>
+            <ul style="margin-top: 16px;">
+                <li><strong>Grasp reward (+0.25):</strong> Detects gripper contact with handle geoms via <code>_check_grasp()</code>. Bridges the reaching &rarr; rotating gap.</li>
+                <li><strong>Action penalty:</strong> Discourages large/jerky joint commands, producing smoother motion and reducing episode-to-episode variance.</li>
+                <li><strong>Time penalty:</strong> Small per-step cost that prevents the agent from hovering near the handle indefinitely.</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Reward Decomposition (Single Episode)</h3>
+            <p>To verify that our reward design works as intended, we decompose the reward signal over a single successful episode. The plot below shows the reaching component (blue) and rotating/completion component (green) stacked over time, along with the gripper-to-handle distance. We can clearly see the agent&rsquo;s strategy: it first closes the distance to the handle (reaching reward climbs), then once contact is made, it begins rotating the latch (green component activates), and finally the door opens (completion bonus).</p>
+        </div>
+        <div class="fig-grid">
+            <div class="fig-container">
+                <img src="figures/reward_decomposition.png" alt="Reward decomposition">
+                <div class="fig-caption">Top: stacked reward components (reaching in blue, rotating/completion in green). Bottom: gripper-to-handle distance over time. The agent reaches the handle by step ~60, then rotates and opens the door.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- (3) TRAINING CURVE VISUALIZATION -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">03.</span> Training Curves</h2>
+        <p class="section-desc">We trained the SAC agent for 200,000 environment steps (~40 minutes on a MacBook Pro with 32 GB RAM, no GPU). Every 10,000 steps, we paused training and evaluated the current policy over 10 episodes with deterministic actions. The plots below show how the agent&rsquo;s performance evolves over the course of training, along with internal SAC diagnostics that confirm the algorithm is learning stably.</p>
+
+        <h3 class="section-label">Evaluation Reward (Interactive &mdash; hover for values)</h3>
+        <div class="plotly-chart"><iframe src="training_curve.html" style="width:100%;height:500px;border:none;"></iframe></div>
+
+        <div class="fig-grid two-col">
+            <div class="fig-container">
+                <img src="figures/training_reward_curve.png" alt="Training reward curve">
+                <div class="fig-caption">Mean evaluation reward (&plusmn;1 std) over 200k timesteps. Reward increases sharply after 150k steps.</div>
+            </div>
+            <div class="fig-container">
+                <img src="figures/episode_length_curve.png" alt="Episode length curve">
+                <div class="fig-caption">Mean episode length over training. All episodes run to the 500-step horizon (no early termination in this environment).</div>
+            </div>
+        </div>
+
+        <h3 class="section-label">SAC Training Diagnostics</h3>
+        <p style="color: var(--muted); margin-bottom: 16px;">Beyond the reward curve, we monitor SAC&rsquo;s internal training signals to verify that learning is proceeding correctly. The <strong>critic loss</strong> measures how accurately the value network predicts future rewards &mdash; it should decrease and stabilize as training progresses. The <strong>actor loss</strong> reflects how well the policy maximizes the critic&rsquo;s Q-values. The <strong>entropy coefficient</strong> is automatically tuned by SAC: it starts high (encouraging exploration) and decreases as the policy becomes more confident in its actions. These diagnostics were extracted directly from TensorBoard event files.</p>
+        <div class="fig-grid">
+            <div class="fig-container">
+                <img src="figures/sac_diagnostics.png" alt="SAC training diagnostics">
+                <div class="fig-caption">2&times;3 grid of SAC internals. Critic loss stabilizes as value estimates improve. Entropy coefficient auto-tunes downward as the policy becomes more confident. Rollout reward tracks the learning curve.</div>
+            </div>
+        </div>
+
+        <h3 class="section-label">Checkpoint Progression</h3>
+        <p style="color: var(--muted); margin-bottom: 16px;">To visualize how the policy improves over the course of training, we saved model checkpoints every 50,000 steps and evaluated each one over 10 episodes. The bar charts below show both mean reward and success rate at each checkpoint. The 50k checkpoint barely reaches the handle; by 200k, the agent reliably opens the door in the majority of episodes.</p>
+        <div class="fig-grid">
+            <div class="fig-container">
+                <img src="figures/checkpoint_comparison.png" alt="Checkpoint comparison">
+                <div class="fig-caption">Left: mean episode reward by checkpoint. Right: success rate (%) by checkpoint. Clear improvement from 50k to 200k.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- (4) QUANTITATIVE EVALUATION OF SUCCESS RATE -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">04.</span> Quantitative Evaluation</h2>
+        <p class="section-desc">To rigorously measure the final policy&rsquo;s performance, we loaded the best saved model (selected by highest evaluation reward during training) and ran it for 10 episodes with deterministic action selection. The metrics below summarize the agent&rsquo;s success rate, average reward, and consistency. An episode is counted as a &ldquo;success&rdquo; if the door is fully opened (reward reaches 1.0 at any timestep).</p>
+
+        <div class="metrics-grid">
+            <div class="metric-card"><div class="value">303</div><div class="label">Mean Reward</div></div>
+            <div class="metric-card"><div class="value">80%</div><div class="label">Success Rate</div></div>
+            <div class="metric-card"><div class="value">453</div><div class="label">Best Episode</div></div>
+            <div class="metric-card"><div class="value">200k</div><div class="label">Training Steps</div></div>
+        </div>
+
+        <div class="fig-grid">
+            <div class="fig-container">
+                <img src="figures/evaluation_table.png" alt="Evaluation summary table">
+                <div class="fig-caption">Summary statistics from 10 evaluation episodes using the best saved model (deterministic policy).</div>
+            </div>
+        </div>
+
+        <h3 class="section-label">Rollout Consistency</h3>
+        <p style="color: var(--muted); margin-bottom: 16px;">A key question beyond raw success rate is: <em>how consistent is the policy?</em> If the agent succeeds 80% of the time but follows wildly different strategies each episode, it may be relying on luck rather than a learned skill. The plot below overlays the gripper-to-handle distance over time for all 10 evaluation episodes. Tightly clustered lines indicate that the agent follows a repeatable strategy &mdash; it consistently approaches the handle along a similar path and at a similar speed.</p>
+        <div class="fig-grid">
+            <div class="fig-container">
+                <img src="figures/rollout_consistency.png" alt="Rollout consistency">
+                <div class="fig-caption">Each line is one evaluation episode. The policy consistently reaches the handle within the first ~100 steps across all episodes.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- BEHAVIORAL ANALYSIS -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">05.</span> Behavioral Analysis</h2>
+        <p class="section-desc">Beyond aggregate metrics, we want to understand <em>what</em> the policy actually learned. Did it discover an efficient reach-and-pull strategy, or is it flailing until it gets lucky? The visualizations below examine the agent&rsquo;s physical behavior: how it moves its end-effector through space and how it coordinates its 8 action dimensions over time.</p>
+
+        <h3 class="section-label">3D Gripper Trajectory (Interactive &mdash; drag to rotate, scroll to zoom)</h3>
+        <p style="color: var(--muted); margin-bottom: 16px;">This interactive 3D plot shows the path of the robot&rsquo;s gripper through space for 5 evaluation episodes. You can rotate the view to see the trajectory from different angles. The red diamond marks the door handle position. Notice how all trajectories converge toward the handle from different starting positions &mdash; this shows the policy has learned a generalizable reaching strategy, not just a memorized path for one configuration.</p>
+        <div class="plotly-chart"><iframe src="trajectory_3d.html" style="width:100%;height:700px;border:none;"></iframe></div>
+
+        <div class="fig-grid two-col">
+            <div class="fig-container">
+                <img src="figures/gripper_trajectory_3d.png" alt="Gripper trajectory 3D">
+                <div class="fig-caption">End-effector path through 3D space across 5 episodes. Circle = start, X = end, star = door handle.</div>
+            </div>
+            <div class="fig-container">
+                <img src="figures/action_heatmap.png" alt="Action heatmap">
+                <div class="fig-caption">Joint actions over time for the best episode. Distinct phases (reach, grasp, rotate) are visible as color transitions across the 8 action dimensions.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- METHOD DETAILS -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">06.</span> Method Details</h2>
+        <p class="section-desc">We chose Soft Actor-Critic (SAC) as our RL algorithm after considering several alternatives. PPO is the most commonly used algorithm in RL research, but SAC is generally preferred for continuous control tasks with expensive simulation steps because of its superior sample efficiency. Below we describe the algorithm, our hyperparameter choices, and the software stack that ties everything together.</p>
+
+        <div class="card">
+            <h3>Why SAC?</h3>
+            <p>Soft Actor-Critic (SAC) is an off-policy actor-critic algorithm that maximizes both expected reward and entropy. It maintains a replay buffer of past transitions and learns from them repeatedly, making it significantly more sample-efficient than on-policy methods like PPO which discard data after each update.</p>
+            <ul>
+                <li><strong>Sample-efficient</strong> &mdash; learns from a replay buffer, reusing past experience (critical when each environment step is expensive)</li>
+                <li><strong>Entropy regularization</strong> &mdash; encourages exploration, preventing the policy from collapsing to a single strategy too early</li>
+                <li><strong>Continuous actions</strong> &mdash; natively handles the 8-dim continuous action space (7 joints + gripper)</li>
+                <li><strong>Auto-tuned entropy</strong> &mdash; the entropy coefficient adjusts automatically during training (visible in the diagnostics plot above)</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Hyperparameters</h3>
+            <div class="table-wrapper">
+                <table>
+                    <tr><th>Parameter</th><th>Value</th></tr>
+                    <tr><td>Policy network</td><td>MLP (256, 256)</td></tr>
+                    <tr><td>Learning rate</td><td>3 &times; 10<sup>&minus;4</sup></td></tr>
+                    <tr><td>Replay buffer size</td><td>1,000,000</td></tr>
+                    <tr><td>Batch size</td><td>256</td></tr>
+                    <tr><td>Discount (&gamma;)</td><td>0.99</td></tr>
+                    <tr><td>Soft update (&tau;)</td><td>0.005</td></tr>
+                    <tr><td>Learning starts</td><td>10,000 steps</td></tr>
+                    <tr><td>Total training</td><td>200,000 steps</td></tr>
+                    <tr><td>Eval frequency</td><td>Every 10,000 steps (10 episodes)</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Software Stack</h3>
+            <ul>
+                <li><strong>robosuite</strong> &mdash; task environment and MuJoCo wrapper</li>
+                <li><strong>Gymnasium</strong> &mdash; standard RL environment API</li>
+                <li><strong>Stable-Baselines3</strong> &mdash; SAC implementation, training loop, and evaluation callbacks</li>
+                <li><strong>TensorBoard</strong> &mdash; real-time training monitoring</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ====================================================== -->
+    <!-- DISCUSSION -->
+    <!-- ====================================================== -->
+    <section>
+        <h2><span class="number">07.</span> Discussion &amp; Reflections</h2>
+        <p class="section-desc">This section reflects on the key takeaways from the project: what design decisions had the most impact, where the current approach falls short, and what directions could improve performance in future work.</p>
+
+        <div class="card">
+            <h3>What Worked</h3>
+            <ul>
+                <li>SAC's entropy regularization was critical for exploration in the early stages &mdash; without it, the agent would converge to a poor local minimum</li>
+                <li>Reward shaping provided a smooth gradient that guided the agent through the reach &rarr; grasp &rarr; rotate sequence</li>
+                <li>The custom <strong>grasp reward</strong> was the single highest-impact change &mdash; it filled a critical gap in the learning signal between "hand near handle" and "handle rotating"</li>
+                <li>Training on CPU (MacBook Pro, 32 GB) completed in ~40 minutes for 200k steps &mdash; no GPU required for this task</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Limitations</h3>
+            <ul>
+                <li>High variance across episodes (reward ranges from 26 to 453) &mdash; the policy is sensitive to initial door position randomization</li>
+                <li>All episodes run for the full 500-step horizon &mdash; the agent never "finishes early," suggesting the time penalty may need tuning</li>
+                <li>Training uses low-dimensional state observations &mdash; real-world deployment would require vision-based policies</li>
+                <li>Reward engineering required task-specific knowledge about the grasp mechanics</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3>Future Work</h3>
+            <ul>
+                <li>Train with the improved reward (grasp + action penalty + time penalty) and compare against baseline</li>
+                <li>Train with image observations to move toward sim-to-real transfer</li>
+                <li>Apply the same pipeline to harder tasks (block stacking, nut assembly)</li>
+                <li>Compare SAC vs PPO performance on this task</li>
+                <li>Experiment with curriculum learning &mdash; gradually increase the randomization range</li>
+            </ul>
+        </div>
+    </section>
+
+</div>
+
+<div class="footer">
+    <p>CS 188 &mdash; Computational Approaches to Robot Autonomy</p>
+</div>
+
+</body>
+</html>

@@ -45,14 +45,32 @@ class RobosuiteGymEnv(gym.Env):
         if self.extra_shaping:
             raw = self.env
 
-            # Grasp reward: bridge the gap between reaching and rotating
-            # Use the latch body's geoms (handle + latch pieces)
+            # --- Grasp shaping: gradual reward for getting close AND closing gripper ---
             handle_geoms = [raw.door.naming_prefix + name for name in ["handle", "handle_base", "latch", "latch_tip"]]
+
+            # Binary grasp detection (bonus when fully grasping)
             grasped = raw._check_grasp(
                 gripper=raw.robots[0].gripper,
                 object_geoms=handle_geoms,
             )
-            grasp_reward = 0.25 if grasped else 0.0
+
+            # Gripper-to-handle distance
+            dist = np.linalg.norm(raw._gripper_to_handle)
+
+            # Gripper openness: last action dim controls gripper (-1=close, 1=open)
+            # Reward closing the gripper when near the handle
+            gripper_action = action[-1]
+            near_handle = dist < 0.05  # within 5cm
+            closing_gripper = gripper_action < 0  # negative = closing
+
+            if grasped:
+                grasp_reward = 0.5  # strong bonus for actual grasp
+            elif near_handle and closing_gripper:
+                grasp_reward = 0.15  # partial credit: close + trying to grip
+            elif near_handle:
+                grasp_reward = 0.05  # near but not closing gripper
+            else:
+                grasp_reward = 0.0
 
             # Action penalty: discourage large/jerky actions
             action_penalty = -0.01 * np.sum(action ** 2)
@@ -62,6 +80,8 @@ class RobosuiteGymEnv(gym.Env):
 
             reward += grasp_reward + action_penalty + time_penalty
             info["grasp_reward"] = grasp_reward
+            info["grasped"] = grasped
+            info["dist_to_handle"] = dist
             info["action_penalty"] = action_penalty
             info["time_penalty"] = time_penalty
 
@@ -136,7 +156,7 @@ def train(timesteps=500_000, eval_freq=10_000, save_freq=50_000, resume_from=Non
 
 def evaluate(model_path="models/door_sac/best_model", n_episodes=20, render_mode="human"):
     """Load a trained model and visualize it in the MuJoCo viewer."""
-    env = RobosuiteGymEnv(render_mode=render_mode, horizon=500)
+    env = RobosuiteGymEnv(render_mode=render_mode, horizon=200)
     model = SAC.load(model_path)
 
     for ep in range(n_episodes):
