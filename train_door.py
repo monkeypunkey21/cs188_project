@@ -10,6 +10,14 @@ class RobosuiteGymEnv(gym.Env):
     """Thin wrapper to make robosuite fully compatible with Gymnasium/SB3."""
 
     def __init__(self, render_mode=None, horizon=500, extra_shaping=True):
+        """Initialize the robosuite Door environment with Gymnasium compatibility.
+
+        Args:
+            render_mode: Set to "human" to open the MuJoCo viewer, None for headless.
+            horizon: Maximum number of timesteps per episode.
+            extra_shaping: If True, adds grasp reward, action penalty, and time penalty
+                on top of the base robosuite reward.
+        """
         super().__init__()
         self.render_mode = render_mode
         self.extra_shaping = extra_shaping
@@ -35,11 +43,33 @@ class RobosuiteGymEnv(gym.Env):
         self.action_space = self.gym_env.action_space
 
     def reset(self, seed=None, options=None):
+        """Reset the environment and return the initial observation.
+
+        Args:
+            seed: Random seed for reproducibility (unused by robosuite).
+            options: Additional reset options (unused).
+
+        Returns:
+            Tuple of (observation as float32 array, info dict).
+        """
         obs, info = self.gym_env.reset()
         self.prev_action = None
         return obs.astype(np.float32), info
 
     def step(self, action):
+        """Execute one environment step with the given action.
+
+        Applies the base robosuite reward and, if extra_shaping is enabled, adds:
+            - Grasp reward: multi-stage bonus for approaching and gripping the handle.
+            - Action penalty: -0.01 * ||a||^2 to discourage jerky movements.
+            - Time penalty: -0.002 per step to incentivize faster completion.
+
+        Args:
+            action: 8-dim array (7 joint velocities + 1 gripper command).
+
+        Returns:
+            Tuple of (obs, reward, terminated, truncated, info).
+        """
         obs, reward, terminated, truncated, info = self.gym_env.step(action)
 
         if self.extra_shaping:
@@ -87,22 +117,43 @@ class RobosuiteGymEnv(gym.Env):
         return obs.astype(np.float32), reward, terminated, truncated, info
 
     def render(self):
+        """Render the environment. Only displays if render_mode is 'human'."""
         if self.render_mode == "human":
             self.env.render()
 
     def close(self):
+        """Clean up the robosuite environment and free resources."""
         self.env.close()
 
 
 def make_env(horizon=500, extra_shaping=True):
+    """Factory function to create a RobosuiteGymEnv instance for training.
+
+    Args:
+        horizon: Maximum timesteps per episode.
+        extra_shaping: Whether to enable custom reward shaping (grasp, action, time).
+
+    Returns:
+        A RobosuiteGymEnv instance (headless, no rendering).
+    """
     return RobosuiteGymEnv(horizon=horizon, extra_shaping=extra_shaping)
 
 
 def train(timesteps=500_000, eval_freq=10_000, save_freq=50_000, resume_from=None):
-    """Train a SAC agent on the Door task.
+    """Train a SAC agent on the robosuite Door task.
+
+    Sets up the training and evaluation environments, configures SB3 callbacks
+    for periodic evaluation and checkpointing, and runs SAC training.
 
     Args:
-        resume_from: Path to a checkpoint to resume training from.
+        timesteps: Total number of environment steps to train for.
+        eval_freq: How often (in steps) to run evaluation episodes.
+        save_freq: How often (in steps) to save a model checkpoint.
+        resume_from: Path to a saved model to resume training from. If None,
+            trains from scratch.
+
+    Returns:
+        The trained SAC model.
     """
     env = make_env()
     eval_env = make_env()
@@ -153,7 +204,17 @@ def train(timesteps=500_000, eval_freq=10_000, save_freq=50_000, resume_from=Non
 
 
 def evaluate(model_path="models/door_sac/best_model", n_episodes=20, render_mode="human"):
-    """Load a trained model and visualize it in the MuJoCo viewer."""
+    """Load a trained SAC model and run evaluation episodes.
+
+    Loads the model from disk, runs it in the Door environment with deterministic
+    actions, and prints the total reward per episode. Use render_mode="human" to
+    open the MuJoCo viewer.
+
+    Args:
+        model_path: Path to the saved SB3 model (without .zip extension).
+        n_episodes: Number of evaluation episodes to run.
+        render_mode: "human" for visual rendering, None for headless.
+    """
     env = RobosuiteGymEnv(render_mode=render_mode, horizon=200)
     model = SAC.load(model_path)
 
