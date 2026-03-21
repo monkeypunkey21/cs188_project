@@ -56,7 +56,6 @@ class RobosuiteGymEnv(gym.Env):
 
             dist = np.linalg.norm(raw._gripper_to_handle)
 
-            # Gripper openness: last action dim controls gripper (-1=close, 1=open)
             # Reward closing the gripper when near the handle
             gripper_action = action[-1]
             near_handle = dist < 0.05
