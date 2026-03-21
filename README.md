@@ -124,7 +124,7 @@ These additions are toggled with the `extra_shaping` flag in `RobosuiteGymEnv`.
 | Metric | Value |
 |---|---|
 | Mean Reward | 303 ± 148 |
-| Success Rate | 80% |
+| Success Rate | 90% |
 | Best Episode | 453 |
 | Training Time | ~40 min (MacBook Pro, 32GB, CPU) |
 
